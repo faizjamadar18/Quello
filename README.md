@@ -1,225 +1,128 @@
-<p align="center">
-  <a href="https://github.com/faizjamadar18/DocsChat/actions/workflows/ci.yml"><img src="https://github.com/faizjamadar18/DocsChat/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat&logo=next.js" alt="Next.js 16" />
-  <img src="https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat&logo=python" alt="Python 3.11+" />
-  <img src="https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat&logo=mongodb" alt="MongoDB Atlas" />
-  <img src="https://img.shields.io/badge/Qdrant-Vector_Search-DC244C?style=flat" alt="Qdrant" />
-  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat" alt="MIT License" />
-</p>
+# Quello
 
-<div align="center">
-  <h1 align="center">Quello</h1>
-<a id="readme-top"></a>
+Quello is a shared knowledge workspace for teams. Upload documents, organize them into workspaces, and ask questions in plain language. Every answer streams in as it is generated and cites the exact sources it drew from, so it can be verified before it is used.
 
-<p align="center">
-    Turn documents into answers, instantly.
-    <br />
-    A team-ready RAG workspace: upload PDFs, write docs in the Studio,
-    connect Notion / Drive / GitHub, and chat with your knowledge —
-    every answer grounded in your sources.
-    <br />
-    <br />
-    <a href="https://docschats.vercel.app">Live Demo</a>
-    ·
-    <a href="#features">Features</a>
-    ·
-    <a href="#architecture">Architecture</a>
-    ·
-    <a href="#getting-started">Getting Started</a>
-    ·
-    <a href="#deployment">Deployment</a>
-    ·
-    <a href="#api">API</a>
-  </p>
-</div>
-
-<br />
-
-## 📺 Demo Video
-
-<div align="center">
-
-[![Watch the Quello Demo](https://img.youtube.com/vi/AbhWGvJf2E8/maxresdefault.jpg?v=2)](https://www.youtube.com/watch?v=AbhWGvJf2E8&t=4s)
-
-</div>
-
-<br />
+Try Quello: https://quello.dev
 
 ## Features
 
-- **RAG-Powered Q&A** — ask questions against uploads, Studio docs, and connected apps. Answers stream token-by-token (SSE) and cite their sources.
-- **Multi-Model LLMs** — Google Gemini 2.5 Flash and Groq-hosted models via LangChain, switchable per question.
-- **Team Workspaces** — shared rooms with roles, member management, and email invites.
-- **Studio Editor** — write and AI-refactor documents in a rich text editor.
-- **Connectors** — import knowledge from Notion, Google Drive, and GitHub (OAuth, read-only).
-- **Voice Agent** — talk to your workspace via Vapi (bring your own public key, stored encrypted).
-- **MCP Server** — expose workspace knowledge to MCP clients (Claude, Grok) over Streamable HTTP, with per-user API keys and OAuth discovery.
-- **Google Sign-In** — one-click OAuth, JWT sessions.
+- **Cited answers** — Ask in natural language, across the workspace or scoped to a single file. Responses stream in as they are written and list the documents and passages they came from.
+- **Team workspaces** — Shared spaces with member roles, email invitations, and one shared document corpus per team. Chats stay private to each member.
+- **Studio** — Write and maintain documents in a rich editor, with AI-assisted rewriting and drafting.
+- **Integrations** — Bring in Notion, Google Drive, and GitHub through user-approved, read-only access.
+- **MCP Server** — Connect Claude, ChatGPT, or Grok to a workspace through a secure, per-user key; Perplexity support is on the way.
+- **Voice** — Talk to your workspace instead of typing it, with your own Vapi public key stored encrypted.
 
-## Architecture
+Uploads support PDF, Word (.docx), plain text (.txt), and Markdown (.md) files up to 20 MB.
 
-```
-┌──────────────┐     ┌──────────────────┐     ┌──────────────┐
-│  Next.js 16  │────▶│    FastAPI       │────▶│  MongoDB     │
-│  (Vercel)    │◀────│  (Render)        │     │  Atlas       │
-└──────────────┘     └────────┬─────────┘     └──────────────┘
-                               ├──────────────▶│  Qdrant      │
-                               │               │  (vectors)   │
-                               └──────────────▶│  R2 / local  │
-                                               │  (PDF bytes) │
-```
+## How It Works
 
-| Layer | Technology | Hosting |
-|-------|-----------|---------|
-| Frontend | Next.js 16 (App Router), Tailwind CSS v4, TipTap, Geist Sans | Vercel |
-| Backend | FastAPI 0.115, Python 3.11+, Uvicorn | Render |
-| Database | MongoDB Atlas via Motor (users, workspaces, docs, threads) | MongoDB Atlas |
-| Vector Store | Qdrant Cloud (per-workspace vectors) | Qdrant Cloud |
-| File Storage | Cloudflare R2 (local `uploads/` fallback in dev) | Cloudflare R2 |
-| Embeddings | Google Text Embedding via `langchain-google-genai` | — |
-| LLMs | Google Gemini 2.5 Flash / Groq models via LangChain | — |
-| Auth | Google OAuth + JWT (python-jose) | — |
+When a document enters a workspace — uploaded or imported through an integration — it is processed into a searchable index. When someone asks a question, the system retrieves the most relevant passages and the model answers using only those, citing each source. Nothing is answered from the model's imagination, and nothing outside the workspace is used.
+
+## Assistant Access (MCP)
+
+Quello runs a remote MCP (Model Context Protocol) server over Streamable HTTP, so external assistants can search a workspace and fetch full documents — the same grounded retrieval the app uses, always read-only. Each connection is authenticated per user, either through a quick OAuth sign-in or a personal key created on the MCP Server page, where the server URL is also shown.
+
+| Assistant | How it connects |
+|-----------|-----------------|
+| Claude | OAuth sign-in or personal key |
+| ChatGPT | OAuth sign-in or personal key |
+| Grok | Personal key |
+| Perplexity | Coming soon |
+
+## Technology
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, TipTap |
+| Backend | FastAPI, Python 3.11+ |
+| Database | MongoDB Atlas |
+| Search index | Qdrant, with Google text embeddings |
+| Language models | Groq-hosted models via LangChain, with automatic fallbacks |
+| Document storage | Cloudflare R2 (local disk fallback in development) |
+| Authentication | Google OAuth with signed session tokens |
 
 ## Getting Started
 
-### Prerequisites
+### Requirements
 
 - Python 3.11+
 - Node.js 20+
-- MongoDB Atlas cluster (or local MongoDB)
-- Qdrant Cloud cluster (or local Qdrant)
-- [Google AI API key](https://aistudio.google.com/apikey)
-- [Groq API key](https://console.groq.com/)
-- Google OAuth client ID (for sign-in)
+- A MongoDB database (Atlas or local)
+- A Qdrant instance (cloud or local)
+- A Google AI Studio key (https://aistudio.google.com/apikey)
+- A Groq key (https://console.groq.com/)
+- Google OAuth credentials for sign-in
 
-### Backend Setup
+### Backend
 
 ```bash
 cd backend
-
-# Create and activate virtual environment
 python -m venv venv
-# Windows
-.\venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
+.\venv\Scripts\activate      # Windows
+source venv/bin/activate     # macOS / Linux
 
-# Install dependencies
 pip install -r requirements.txt
+cp .env.example .env         # add your credentials
 
-# Configure environment variables
-cp .env.example .env
-# Edit .env with your API keys and database URL
-
-# Start the development server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API is available at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
+The API runs at `http://localhost:8000`; interactive documentation is served at `/docs`.
 
-### Frontend Setup
+### Frontend
 
 ```bash
 cd frontend
-
-# Install dependencies
 npm install
-
-# Configure environment (optional — same-origin /api proxy is the default)
-cp .env.example .env.local
-
-# Start the development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open `http://localhost:3000`. The app proxies API calls to the local backend by default; to enable Google sign-in, copy `frontend/.env.example` to `frontend/.env.local` and set `NEXT_PUBLIC_GOOGLE_CLIENT_ID`.
 
-### Environment Variables
+### Configuration
 
-#### Backend (`backend/.env` — see `.env.example` for the full list)
+Required backend variables (`backend/.env`):
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `MONGODB_URL` | Yes | MongoDB Atlas connection string |
-| `DB_NAME` | No | Database name (default: `quello`) |
-| `JWT_SECRET` | Yes | Secret key for JWT signing |
-| `GEMINI_API_KEY` | Yes | Google AI Studio API key |
-| `GROQ_API_KEY` | Yes | Groq API key |
-| `QDRANT_URL` / `QDRANT_API_KEY` | Yes | Qdrant Cloud endpoint + key |
-| `GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID |
-| `CORS_ORIGINS` | No | Comma-separated allowed frontend origins |
-| `R2_ENDPOINT` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | No | Cloudflare R2 (empty = local `uploads/` fallback) |
+| Variable | Purpose |
+|----------|---------|
+| `MONGODB_URL` | Database connection string |
+| `JWT_SECRET` | Secret used to sign session tokens |
+| `GEMINI_API_KEY` | Google AI Studio key |
+| `GROQ_API_KEY` | Groq key |
+| `QDRANT_URL`, `QDRANT_API_KEY` | Search index endpoint and credentials |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `CORS_ORIGINS` | Allowed frontend origins |
 
-#### Frontend (`frontend/.env.local`)
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_API_URL` | No | Backend origin, e.g. `https://your-render-app.onrender.com` (default: same-origin `/api` proxy) |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Yes | Google OAuth client ID (sign-in button) |
-
-> **For production (Vercel):** set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in the Vercel dashboard. Local `.env` files are gitignored and never deployed.
+Optional settings — document storage (R2), integrations (Notion, Drive, GitHub), voice (bring your own Vapi key), invite email (Resend), and the public MCP URL — are documented with defaults in `backend/.env.example` and `frontend/.env.example`.
 
 ## Deployment
 
-### Render (Backend)
+### Backend (Render)
 
-1. Create a new **Web Service** on Render and connect this repository.
-2. Set **Root Directory** to `backend/`.
-3. Set **Build Command** to `pip install -r requirements.txt`.
-4. Set **Start Command** to `bash start.sh`.
-5. Add the required environment variables in the Render dashboard (`MONGODB_URL`, `JWT_SECRET`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `QDRANT_URL`, `QDRANT_API_KEY`, `GOOGLE_CLIENT_ID`, `CORS_ORIGINS`, `DB_NAME`).
+A `render.yaml` blueprint is included in `backend/`. To configure manually, create a Web Service pointed at this repository with root directory `backend`, build command `pip install --prefer-binary -r requirements.txt`, and start command `bash start.sh`, then set the environment variables above.
 
-A `render.yaml` blueprint is included in `backend/` for one-click infrastructure setup.
+### Frontend (Vercel)
 
-> **Note (free tier):** Render sleeps idle free services; the first request after sleep takes ~1 minute. The landing page pings `GET /api/health` on load so warm-up starts while visitors read, and `/health` answers instantly without waiting on the database.
-
-### Vercel (Frontend)
-
-1. Import the `frontend/` directory as a new Vercel project.
-2. Add environment variables:
-
-| Variable | Value |
-|----------|-------|
-| `NEXT_PUBLIC_API_URL` | `https://your-render-app.onrender.com` |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | your Google OAuth client ID |
-
-3. Deploy. No additional configuration required.
+Import `frontend/` as a Vercel project and set `NEXT_PUBLIC_API_URL` (the backend URL) and `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. The Google Drive integration additionally needs `NEXT_PUBLIC_GOOGLE_API_KEY` and `NEXT_PUBLIC_GOOGLE_APP_ID` for the Google Picker. No other steps are required.
 
 ## API
 
-Auth: Google sign-in returns a JWT; send it as an `Authorization: Bearer <token>` header on `/api/*` calls.
+Authentication uses a token issued at sign-in, sent as `Authorization: Bearer <token>` on API requests.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Liveness probe (instant, includes `db_ready`) |
-| `GET` | `/api/health` | Same probe under `/api` (frontend warm-up) |
-| `GET` | `/health/db` | Database connectivity check |
-| `POST` | `/api/auth/google` | Google sign-in, returns JWT (+ optional `invite_token`) |
-| `GET` / `PATCH` | `/api/auth/me`, `/api/auth/profile`, `/api/auth/onboarding` | Current user, profile, onboarding |
-| `DELETE` | `/api/auth/account` | Delete account |
-| `GET` / `POST` | `/api/workspaces`, `/api/workspaces/{id}`, `/{id}/dashboard`, `/{id}/activate` | Workspaces CRUD + dashboard |
-| `GET` / `POST` / `DELETE` | `/api/workspaces/{id}/members`, `/invites`, `.../leave` | Members, invites (email), leave |
-| `GET` / `POST` | `/api/sources`, `/api/sources/upload` (PDF, 20MB max), `/{id}`, `/{id}/download` | Uploaded PDFs |
-| `DELETE` | `/api/sources/{id}` | Delete a source |
-| `GET` / `POST` / `PUT` / `DELETE` | `/api/documents`, `/{id}`, `/{id}/index`, `/{id}/ai-refactor` | Studio documents + AI tools |
-| `GET` / `POST` | `/api/chat/threads`, `/threads/{id}/messages` | Chat threads |
-| `POST` | `/api/chat/ask` | Ask a question (SSE stream) |
-| `GET` / `DELETE` | `/api/chat/history`, `/api/chat/clear` | History, clear |
-| `GET` / `POST` | `/api/connectors/status`, `/notion|drive|github/auth-url`, `.../callback`, `.../import` | Notion / Drive / GitHub |
-| `POST` / `DELETE` | `/api/connectors/sources/{id}/resync`, `/api/connectors/{provider}` | Resync, disconnect |
-| `GET` / `PUT` / `DELETE` | `/api/voice/key`, `/key-status` | Vapi public key (BYOK, encrypted) |
-| `POST` | `/api/voice/session`, `/bootstrap`, `/tool-call` | Voice sessions |
-| `GET` / `POST` / `DELETE` | `/api/voice/logs` | Voice call logs |
-| `POST` / `GET` / `DELETE` | `/api/mcp-keys` | Per-user MCP API keys |
-| `POST` / `GET` / `DELETE` | `/mcp`, `/api/mcp` | MCP server (Streamable HTTP) |
+The API covers account and profile management, workspaces and membership, document upload and retrieval, Studio documents, chat threads and streamed Q&A, integrations, voice sessions, and a remote MCP server (served at `/mcp`) with personal access keys. The complete interactive reference is generated at `/docs` on a running instance.
 
-Full interactive reference: `/docs` on a running backend.
+## Security
+
+- Sign-in is delegated to Google OAuth; the application does not store passwords.
+- Session tokens are signed and expire. Connector tokens and voice keys are encrypted at rest; MCP personal keys are stored as SHA-256 hashes and shown only once, at creation.
+- Integration and assistant (MCP) access is read-only.
+- Keys and secrets live only in server-side environment variables and are never shipped to the client.
 
 ## Testing
 
 ```bash
-# Backend (28 test files, mocked DB — no Atlas needed)
+# Backend (database layer is mocked; no external services required)
 cd backend
 pip install -r requirements-dev.txt
 python -m pytest -q
@@ -231,29 +134,20 @@ npm run lint
 npx tsc --noEmit
 ```
 
-CI runs all of this on every push (see `.github/workflows/ci.yml`).
+CI runs the full suite on every push to `main` and on all pull requests (`.github/workflows/ci.yml`).
 
-## Smoke Test
+## Project Structure
 
-1. Open the app and **continue with Google**.
-2. Upload a PDF via **Add source** and wait for *Ready*.
-3. Ask a question in chat — verify the streamed answer cites sources.
-4. Start a second thread — verify history is per-thread.
-5. Create a workspace, invite a teammate, verify roles.
-
-## Known Limitations
-
-- Render free tier sleeps when idle (~1 min first wake; landing-page warm-up softens it).
-- PDF uploads only, 20MB max per file.
-- Requires MongoDB Atlas + Qdrant + Google/Groq keys to run fully.
-- No JWT refresh rotation yet.
+```
+backend/    FastAPI application (app/routes, app/services, app/models) with its test suite
+frontend/   Next.js application (src/app, src/components, src/hooks, src/context)
+docs/       Design system reference
+```
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Bug reports and small PRs welcome.
+Issues and pull requests are welcome. For larger changes, open an issue first to discuss the approach. CI must pass on every pull request: backend tests and lint, frontend lint and typecheck.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
-
-<p align="right"><a href="#readme-top">back to top ▲</a></p>
+MIT. See [LICENSE](./LICENSE).
