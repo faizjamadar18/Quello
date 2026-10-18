@@ -3,14 +3,15 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { QuelloLogo } from './Icons';
+import { QuelloLogo, ArrowUpRightIcon } from './Icons';
 
 export default function Footer() {
-  const navLinks = [
+  const navLinks: { label: string; href: string; external?: boolean }[] = [
     { label: 'Overview', href: '/#overview' },
     { label: 'How it works', href: '/#how-it-works' },
     { label: 'Traceability', href: '/#traceability' },
     { label: 'Connected AI Apps', href: '/#connectors' },
+    { label: 'Github', href: 'https://github.com/faizjamadar18/Quello', external: true },
   ];
 
   // In-page anchors glide via the global Lenis interceptor (LenisProvider),
@@ -49,9 +50,12 @@ export default function Footer() {
                   <a
                     key={link.label}
                     href={link.href}
-                    className="text-xs sm:text-sm font-medium text-[#63635e] hover:text-[#ff6a00] transition-colors whitespace-nowrap"
+                    target={link.external ? '_blank' : undefined}
+                    rel={link.external ? 'noopener noreferrer' : undefined}
+                    className="inline-flex items-center gap-1 text-xs sm:text-sm font-medium text-[#63635e] hover:text-[#ff6a00] transition-colors whitespace-nowrap"
                   >
                     {link.label}
+                    {link.external ? <ArrowUpRightIcon className="size-3 sm:size-3.5" /> : null}
                   </a>
                 );
               })}
