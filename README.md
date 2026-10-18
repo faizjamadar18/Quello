@@ -10,7 +10,7 @@ Try Quello: https://quello.dev
 - **Team workspaces** — Shared spaces with member roles, email invitations, and one shared document corpus per team. Chats stay private to each member.
 - **Studio** — Write and maintain documents in a rich editor, with AI-assisted rewriting and drafting.
 - **Integrations** — Bring in Notion, Google Drive, and GitHub through user-approved, read-only access.
-- **MCP Server** — Connect Claude, ChatGPT, or Grok to a workspace through a secure, per-user key; Perplexity support is on the way.
+- **MCP Server** — Connect Claude, ChatGPT, Grok or Perplexity to a workspace through a secure, per-user key.
 - **Voice** — Talk to your workspace instead of typing it, with your own Vapi public key stored encrypted.
 
 Uploads support PDF, Word (.docx), plain text (.txt), and Markdown (.md) files up to 20 MB.
@@ -28,7 +28,7 @@ Quello runs a remote MCP (Model Context Protocol) server over Streamable HTTP, s
 | Claude | OAuth sign-in or personal key |
 | ChatGPT | OAuth sign-in or personal key |
 | Grok | Personal key |
-| Perplexity | Coming soon |
+| Perplexity | OAuth sign-in or personal key |
 
 ## Technology
 
