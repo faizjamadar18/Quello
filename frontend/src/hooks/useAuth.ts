@@ -29,7 +29,9 @@ export function notifyUserUpdated() {
  * request per page load, sync token read on mount).
  *
  * Backwards-compatible return shape; adds `hasSession` (optimistic,
- * network-independent) and `mounted` for hydration-safe nav CTAs.
+ * network-independent), `mounted` for hydration-safe nav CTAs, and
+ * `verifyFailed` (transient backend outage while a token is held —
+ * session preserved, never a false logout).
  */
 export function useAuth() {
   const session = useAuthSession();
@@ -42,5 +44,6 @@ export function useAuth() {
     setUser: session.setUser,
     hasSession: session.hasSession,
     mounted: session.mounted,
+    verifyFailed: session.verifyFailed,
   };
 }

@@ -53,6 +53,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-dvh relative bg-base text-text-primary font-base antialiased">
+        {/* Pre-hydration session mirror: legacy sessions (or any state the
+            regular flow missed) get their `quello_token` edge cookie rebuilt
+            from storage before first paint, so middleware gating on the very
+            first internal navigation matches what lib/auth.ts keeps in sync
+            afterwards. Max-age mirrors SESSION_COOKIE_MAX_AGE in lib/auth.ts. */}
+        <script
+          type="text/javascript"
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{(function(){var t=localStorage.getItem('notebooklm_token');if(t&&!('; '+document.cookie).includes('; quello_token=')){var s=window.location.protocol==='https:'?'; secure':'';document.cookie='quello_token='+encodeURIComponent(t)+'; path=/; max-age=604800; samesite=lax'+s;}})()}catch(e){}",
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}

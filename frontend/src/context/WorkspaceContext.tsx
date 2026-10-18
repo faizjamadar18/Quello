@@ -1,6 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback, useSyncExternalStore } from 'react';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
 export interface Workspace {
@@ -20,6 +20,13 @@ interface WorkspaceContextType {
   workspaces: Workspace[];
   currentWorkspace: Workspace | null;
   loading: boolean;
+  /**
+   * Bootstrap failed transiently (backend waking / network) past the
+   * staged retries. The shell shows a reconnect panel instead of the
+   * zero-room gate: an unconfirmed outage must never read as
+   * "you have no workspaces", and it must never sign the user out.
+   */
+  loadFailed: boolean;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -30,6 +37,35 @@ interface WorkspaceContextType {
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
+
+const WORKSPACE_RETRY_DELAYS_MS = [1500, 3500, 7000];
+
+/** Shape of GET /workspaces, mirroring the updated user payload. */
+interface WorkspaceListResponse {
+  workspaces?: Workspace[];
+  active_workspace_id?: string | null;
+}
+
+/**
+ * GET with staged backoff for transient failures only (cold Render start,
+ * dropped request). 4xx fails fast — those are definitive answers, not
+ * temporary trouble — so real 401s still clear the session immediately.
+ */
+async function getWithTransientRetry<T>(path: string): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= WORKSPACE_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return (await api.get(path)) as T;
+    } catch (err) {
+      lastError = err;
+      const status = err instanceof ApiError ? err.status : 0;
+      const transient = status === 0 || status === 429 || status >= 500;
+      if (!transient || attempt === WORKSPACE_RETRY_DELAYS_MS.length) break;
+      await new Promise((resolve) => setTimeout(resolve, WORKSPACE_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  throw lastError;
+}
 
 // --- Hydration-safe sidebar collapse preference (localStorage) ---
 // Mirrors AuthContext's pattern: server and first client paint see the
@@ -74,6 +110,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const sidebarCollapsed = useSyncExternalStore(
     subscribeSidebarCollapsed,
     getSidebarCollapsedSnapshot,
@@ -86,11 +123,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       setWorkspaces([]);
       setCurrentWorkspace(null);
       setLoading(false);
+      setLoadFailed(false);
       return;
     }
 
     try {
-      const data = await api.get('/workspaces');
+      const data = await getWithTransientRetry<WorkspaceListResponse>('/workspaces');
+      setLoadFailed(false);
       const wsList: Workspace[] = data.workspaces || [];
       setWorkspaces(wsList);
 
@@ -111,6 +150,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.error('Failed to load workspaces:', err);
+      setLoadFailed(true);
       if (user) {
         setCurrentWorkspace({
           id: 'default',
@@ -135,13 +175,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           setWorkspaces([]);
           setCurrentWorkspace(null);
           setLoading(false);
+          setLoadFailed(false);
         }
         return;
       }
 
       try {
-        const data = await api.get('/workspaces');
+        const data = await getWithTransientRetry<WorkspaceListResponse>('/workspaces');
         if (cancelled) return;
+        setLoadFailed(false);
         const wsList: Workspace[] = data.workspaces || [];
         setWorkspaces(wsList);
 
@@ -163,6 +205,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         if (cancelled) return;
         console.error('Failed to load workspaces:', err);
+        setLoadFailed(true);
         if (user) {
           setCurrentWorkspace({
             id: 'default',
@@ -210,6 +253,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         workspaces,
         currentWorkspace,
         loading,
+        loadFailed,
         sidebarCollapsed,
         toggleSidebar,
         setSidebarCollapsed,

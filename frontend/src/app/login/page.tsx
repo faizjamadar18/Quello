@@ -9,6 +9,7 @@ import { QuelloMark, RadialSpinner } from '../../components/landing/Icons';
 import BackendWarmup from '../../components/BackendWarmup';
 import { api } from '../../lib/api';
 import { auth } from '../../lib/auth';
+import { useAuth } from '../../hooks/useAuth';
 
 function LoginForm() {
   const [error, setError] = useState('');
@@ -17,10 +18,21 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get('next') || '/home';
+  const { mounted } = useAuth();
   // Letter-never-lost: carry a /join/{token} invite through Google signup
   // so invited new users skip the solo room (backend honors invite_token).
   const inviteToken =
     next.startsWith('/join/') ? decodeURIComponent(next.slice('/join/'.length)).split('?')[0].split('/')[0] : null;
+
+  // Already-signed-in visitors never sit on the login form: restore the
+  // middleware cookie if the pre-hydration script missed it, then continue
+  // to `next` (or the workspace). If the held token turns out to be dead,
+  // verification clears the session and lands the user right back here.
+  // This also covers the one-time bounce of pre-middleware sessions.
+  useEffect(() => {
+    if (!mounted || !auth.ensureSessionCookie()) return;
+    router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/home');
+  }, [mounted, next, router]);
 
   // Immediately start loading when window blurs while hovering over the Google button (e.g. Google popup window opened)
   useEffect(() => {

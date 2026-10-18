@@ -20,6 +20,22 @@ export interface ApiRequestOptions extends RequestInit {
   skipAuthRedirect?: boolean;
 }
 
+/**
+ * Typed request failure. `status` lets callers separate a definitive
+ * auth rejection (401/403 → sign out) from transient trouble (0 network /
+ * 5xx cold start → keep the session, retry), which the plain string error
+ * used to make impossible.
+ */
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 export const api = {
   async request(endpoint: string, options: ApiRequestOptions = {}) {
     const { skipAuthRedirect, ...fetchOptions } = options;
@@ -45,14 +61,18 @@ export const api = {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
+      const status = response.status;
+      if (status === 401) {
+        // Definitive sign-out: clear storage + cookie mirror together, and
+        // carry the deep link along so sign-in can return to this page.
         auth.removeToken();
         if (!skipAuthRedirect && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-          window.location.href = '/login';
+          const next = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `/login?next=${next}`;
         }
       }
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(parseErrorDetail(errorData.detail));
+      throw new ApiError(parseErrorDetail(errorData.detail), status);
     }
 
     if (response.status === 204) {

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '../../../lib/auth';
-import { api } from '../../../lib/api';
+import { api, ApiError } from '../../../lib/api';
 
 function WelcomeInner() {
   const router = useRouter();
@@ -24,9 +24,15 @@ function WelcomeInner() {
           router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/home');
           return;
         }
-      } catch {
-        if (!cancelled) router.push('/login');
-        return;
+      } catch (err: unknown) {
+        // Only a definitive auth rejection sends the user away. A transient
+        // failure (cold backend / network blip) must not drop an in-flight
+        // onboarding session off its path.
+        const status = err instanceof ApiError ? err.status : 0;
+        if (!cancelled && (status === 401 || status === 403)) {
+          router.push('/login');
+          return;
+        }
       }
       if (!cancelled) setChecking(false);
     })();
