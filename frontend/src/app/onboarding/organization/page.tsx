@@ -4,9 +4,11 @@ import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { auth } from '../../../lib/auth';
 import { api, ApiError } from '../../../lib/api';
+import { useAuth } from '../../../hooks/useAuth';
 
 function OrganizationInner() {
   const router = useRouter();
+  const { setUser } = useAuth();
   const searchParams = useSearchParams();
   const next = searchParams?.get('next') || '';
   // Letter-never-lost: a /join/{token} next means invite signup. Backend
@@ -73,10 +75,16 @@ function OrganizationInner() {
     }
     setSaving(true);
     try {
-      await api.patch('/auth/onboarding', {
+      // Backend PATCH persists onboarding and returns the updated profile.
+      const updated = await api.patch('/auth/onboarding', {
         workspace_name: trimmed,
         ...(inviteToken ? { invite_token: inviteToken } : {}),
       });
+      // Adopt the fresh profile into the session BEFORE navigating. /home's
+      // ProtectedRoute acts on this cached snapshot; leaving it as
+      // `onboarding_completed: false` after the backend already saw `true`
+      // ping-pongs /home <-> /onboarding/welcome forever.
+      if (setUser && updated?.onboarding_completed === true) setUser(updated);
       router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/home');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not save. Try again.');

@@ -1,7 +1,7 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, type User } from '../hooks/useAuth';
 
 /**
  * Client-side backstop to the edge gate (src/middleware.ts).
@@ -19,6 +19,9 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const { user, isAuthenticated, loading, verifyFailed, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  // The last "false" answer whose snapshot was produced by a fresh /auth/me:
+  // identical snapshot ⇒ the cached flag IS definitive, bounce directly.
+  const definitiveFalseRef = useRef<User | null>(null);
 
   useEffect(() => {
     if (loading || verifyFailed || isAuthenticated) return;
@@ -29,16 +32,43 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }, [isAuthenticated, loading, verifyFailed, pathname, router]);
 
   useEffect(() => {
-    if (
-      !loading &&
-      isAuthenticated &&
-      user?.onboarding_completed === false &&
-      !pathname?.startsWith('/onboarding')
-    ) {
+    if (loading || verifyFailed || !isAuthenticated) return;
+    if (pathname?.startsWith('/onboarding')) return;
+    if (user?.onboarding_completed !== false) {
+      // Flag cleared (e.g. onboarding just completed): re-arm the definitive
+      // snapshot so a future session/flag states get a fresh truth-up.
+      definitiveFalseRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      if (definitiveFalseRef.current !== user) {
+        // `user` here is the cached session snapshot, which can lag the
+        // backend (e.g. onboarding just completed in this same session via
+        // PATCH /auth/onboarding). Bouncing to the welcome screen on a stale
+        // "false" made /home and /onboarding/welcome redirect into each
+        // other forever — the welcome screen always consulted a fresh
+        // /auth/me. True-up once on fresh truth; only a still-false answer
+        // is definitive enough to redirect on.
+        const fresh = await refreshUser();
+        if (cancelled) return;
+        if (!fresh || fresh.onboarding_completed !== false) {
+          // Transient verify failure (the provider self-heals and this
+          // effect re-runs) or the fresh profile cleared the flag: neither
+          // state may redirect.
+          return;
+        }
+        // refreshUser sets this exact object as the session user, so the
+        // re-render below hits the direct-bounce branch instead of looping.
+        definitiveFalseRef.current = fresh;
+      }
       // Letter-never-lost: carry deep links (e.g. /join/{token}) through onboarding.
       router.push(`/onboarding/welcome?next=${encodeURIComponent(pathname || '/home')}`);
-    }
-  }, [isAuthenticated, loading, user, verifyFailed, pathname, router]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, loading, user, verifyFailed, pathname, router, refreshUser]);
 
   // Reacting to a transient verify failure while a user is already verified?
   // Keep rendering: the shell stays usable on real responses, and the
