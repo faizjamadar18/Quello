@@ -622,6 +622,16 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
 }
 
+/* Product Hunt Badge (hero headline) — single fade-in on page load */
+@keyframes phBadgeFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Safe Area Insets for Mobile Screens (iOS Notch & Dynamic Island) */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
