@@ -35,6 +35,9 @@ export default function HomePage() {
   const [askQuery, setAskQuery] = useState('');
   const [recentAssets, setRecentAssets] = useState<RecentItem[]>([]);
   const [recentDocs, setRecentDocs] = useState<RecentItem[]>([]);
+  // Has the first recents fetch settled (success or error)? Skeletons only
+  // until then — later reloads (focus / sources-updated) never flash them.
+  const [recentLoaded, setRecentLoaded] = useState(false);
   const [mentionDocs, setMentionDocs] = useState<MentionItem[]>([]);
   const [mentionAssets, setMentionAssets] = useState<MentionItem[]>([]);
 
@@ -69,7 +72,10 @@ export default function HomePage() {
       // Key on the live workspace context (not the stale session snapshot) so
       // switching workspaces refills Home immediately, without a refresh.
       const wsId = currentWorkspace?.id || user?.active_workspace_id;
-      if (!wsId) return;
+      if (!wsId) {
+        setRecentLoaded(true);
+        return;
+      }
       try {
         const data = await api.get(`/workspaces/${wsId}/dashboard`);
         if (cancelled) return;
@@ -91,6 +97,7 @@ export default function HomePage() {
           }));
           setRecentDocs(docs);
         }
+        setRecentLoaded(true);
       } catch (err) {
         // Stale pointer self-heal (once): the active room may be gone
         // (left/removed/deleted). Refresh rooms, retry the first
@@ -101,8 +108,13 @@ export default function HomePage() {
           try {
             await refreshWorkspaces();
           } catch { /* ignore */ }
+          // Never wedge the skeletons: if the refresh picked a different
+          // workspace the effect re-runs and fetches again; otherwise the
+          // (empty) sections show as they do for a genuinely empty room.
+          setRecentLoaded(true);
           return;
         }
+        setRecentLoaded(true);
         console.error("Failed to fetch dashboard data:", err);
       }
     }
@@ -372,28 +384,42 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="space-y-1">
-          {recentAssets.map((asset) => (
-            <Link
-              key={asset.id}
-              href="/assets"
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-sidebar transition-colors group cursor-pointer"
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0">
-                  <FilenameIcon filename={asset.title} sourceType={asset.sourceType} className="w-4 h-4" />
+        {recentLoaded ? (
+          <div className="space-y-1">
+            {recentAssets.map((asset) => (
+              <Link
+                key={asset.id}
+                href="/assets"
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-sidebar transition-colors group cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0">
+                    <FilenameIcon filename={asset.title} sourceType={asset.sourceType} className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-medium text-text-primary group-hover:text-accent-hover transition-colors truncate">
+                      {asset.title}
+                    </h4>
+                    <p className="text-[11px] text-text-muted truncate">{asset.subtitle}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-medium text-text-primary group-hover:text-accent-hover transition-colors truncate">
-                    {asset.title}
-                  </h4>
-                  <p className="text-[11px] text-text-muted truncate">{asset.subtitle}</p>
+                <ChevronRight className="w-4 h-4 text-[#D1D5DB] group-hover:text-text-secondary transition-colors shrink-0 ml-2" />
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1" aria-label="Loading recent assets">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-surface animate-pulse">
+                <div className="w-8 h-8 rounded-lg bg-sidebar shrink-0" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="h-3 w-2/5 rounded bg-sidebar" />
+                  <div className="h-2.5 w-1/4 rounded bg-sidebar" />
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#D1D5DB] group-hover:text-text-secondary transition-colors shrink-0 ml-2" />
-            </Link>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent Documents Section */}
@@ -408,28 +434,42 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="space-y-1">
-          {recentDocs.map((doc) => (
-            <Link
-              key={doc.id}
-              href="/studio"
-              className="flex items-center justify-between p-3 rounded-xl hover:bg-sidebar transition-colors group cursor-pointer"
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0">
-                  <StudioDocIcon className="w-4 h-4" />
+        {recentLoaded ? (
+          <div className="space-y-1">
+            {recentDocs.map((doc) => (
+              <Link
+                key={doc.id}
+                href="/studio"
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-sidebar transition-colors group cursor-pointer"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-lg bg-[#F3F4F6] flex items-center justify-center shrink-0">
+                    <StudioDocIcon className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-medium text-text-primary group-hover:text-accent-hover transition-colors truncate">
+                      {doc.title}
+                    </h4>
+                    <p className="text-[11px] text-text-muted truncate">{doc.subtitle}</p>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h4 className="text-xs font-medium text-text-primary group-hover:text-accent-hover transition-colors truncate">
-                    {doc.title}
-                  </h4>
-                  <p className="text-[11px] text-text-muted truncate">{doc.subtitle}</p>
+                <ChevronRight className="w-4 h-4 text-[#D1D5DB] group-hover:text-text-secondary transition-colors shrink-0 ml-2" />
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1" aria-label="Loading recent documents">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-surface animate-pulse">
+                <div className="w-8 h-8 rounded-lg bg-sidebar shrink-0" />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="h-3 w-2/5 rounded bg-sidebar" />
+                  <div className="h-2.5 w-1/4 rounded bg-sidebar" />
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-[#D1D5DB] group-hover:text-text-secondary transition-colors shrink-0 ml-2" />
-            </Link>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

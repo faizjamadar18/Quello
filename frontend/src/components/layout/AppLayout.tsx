@@ -35,6 +35,23 @@ function AppShell({
   // (loadFailed): an unconfirmed "no rooms" would be a false positive.
   const roomless = !workspacesLoading && !loadFailed && workspaces.length === 0;
 
+  // Boot gate: hold the ENTIRE shell (sidebar, header, page content) until
+  // the workspace context has resolved its first load. Rendering it early
+  // mounted everything under the transient `key` below and remounted the
+  // whole subtree wholesale when the real workspace id arrived — a visible
+  // paint-twice / empty-then-filled flash that shows up only on a direct or
+  // external page load (in-app navigation keeps the provider warm, so the
+  // key never flips there). Spinner style and background match
+  // ProtectedRoute's so boot reads as one continuous state, and the shell
+  // then paints exactly once, already in its final shape.
+  if (!currentWorkspace) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-base">
+        <div className="w-5 h-5 border-3 border-white/10 border-l-white rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
   return (
     // Remount the entire workspace subtree on switch so no previous-workspace
     // state (docs, threads, recents, selections) survives. Providers above stay
