@@ -35,21 +35,6 @@ export default function Hero() {
             One place to ask
             <br />
             across everything
-            <a
-              href="https://www.producthunt.com/products/quello?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-quello"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 block w-fit align-middle shadow-[0_1px_2px_rgba(0,0,0,0.06)] transition-transform duration-150 ease-out hover:-translate-y-[1px] animate-[phBadgeFadeIn_300ms_ease-out_both] lg:mt-0 lg:ml-3.5 lg:inline-flex"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                alt="Quello - One place to ask, across everything you already use. | Product Hunt"
-                width={140}
-                height={30}
-                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1284647&theme=light&t=1792354253843"
-                className="h-[30px] w-[140px]"
-              />
-            </a>
           </h1>
           <p className="text-sm sm:text-base md:text-[19px] leading-relaxed tracking-[-0.01em] text-[#63635e] max-w-2xl text-pretty">
             Bring what you already use into one workspace, for teams and for individuals. Ask in plain language, and every answer links to its evidence, one click away.
